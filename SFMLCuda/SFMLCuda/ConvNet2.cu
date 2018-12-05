@@ -167,4 +167,12 @@ void ConvNet::Destroy()
 {
 	if (!init)
 		return;
+
+	//Free Host
+	delete[] m_kernalData;
+	delete[] perLayerData;
+
+	//Free Device
+	cudaFree(d_dataArray);
+	cudaFree(d_kernalArray);
 }
