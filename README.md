@@ -5,11 +5,12 @@ This project is my first atempt to implement a Deep Neural Network.
 
 -==The Goal==-
 
-MAIN
-	The program is that it should be able to classifi a set of 60000 images(of size 32x32x3 each) to one of 100 different classes.
-	Should utilze the GPU using CUDA.
-Bonus
-	The program should still be generic enough to solve any kind of problem where deep learning can be applied.
+-MAIN-
+The program is that it should be able to classifi a set of 60000 images(of size 32x32x3 each) to one of 100 different classes.
+Should utilze the GPU using CUDA.
+
+-Bonus-
+The program should still be generic enough to solve any kind of problem where deep learning can be applied.
 
 -==Short Description==-
 
