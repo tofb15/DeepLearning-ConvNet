@@ -14,8 +14,9 @@ The program should still be generic enough to solve any kind of problem where de
 
 -==Short Description==-
 
-Image dataset included: CIFAR-10. Images are saved in .bin files, each file containing 10000 images and the class each image belong to. Description of the dataset ->(http://www.cs.utoronto.ca/~kriz/cifar.html)
+* Visual Studio Community 2017, version 15.9.1
+* SFML-2.5.1 is included in the project and is used to display the images to the screen.
+* Program is using CUDA 10.0 which must be installed on your computer and integrated with Visual Studio 2017. (https://developer.nvidia.com/cuda-downloads)
 
-SFML is used to display the images.
+Image dataset included: CIFAR-10. Images are saved in .bin files, each file containing 10000 images, of size 32x32x3 each, and the class each image belong to. Description of the dataset ->(http://www.cs.utoronto.ca/~kriz/cifar.html)
 
-Program language: C++ & CUDA
