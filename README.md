@@ -5,16 +5,16 @@ This project is my first atempt to implement a Deep Neural Network.
 * ( Project started                     @ 5:th dec 2018 )
 * ( Targeted deadline for the main goal @ 5:th jan 2019 )
 
--==The Goal==-
+## The Goal
 
--MAIN-
+### -MAIN-
 The program should be able to classify a set of 60000 images(of size 32x32x3 each) to one of 10 different classes.
 The program should utilze the GPU using CUDA.
 
--Bonus-
+### -Bonus-
 The program should still be generic enough to solve any kind of problem where deep learning can be applied.
 
--==Important information==-
+## Important information
 
 * Project created with Visual Studio Community 2017, version 15.9.1
 * SFML-2.5.1 is included in the project and is used to display the images to the screen.
