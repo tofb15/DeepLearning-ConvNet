@@ -8,6 +8,7 @@
 
 #include "ConvNet.hpp"
 
+//Remove This
 __global__ void applyKernal(unsigned char* inputMaps, int numInputs, int I_W, int I_H, unsigned char* outputMaps, int numOutputs, float* kernalData, int K_WH) {
 
 	int id = threadIdx.x;
@@ -44,6 +45,7 @@ __global__ void applyKernal(unsigned char* inputMaps, int numInputs, int I_W, in
 
 }
 
+//Remove This
 __global__ void applyKernal_Dummy(char* inputMaps, int numInputs, int I_W, int I_H, char* outputMaps, int numOutputs, float* kernalData, int K_WH) {
 
 	int id = threadIdx.x;
@@ -51,6 +53,7 @@ __global__ void applyKernal_Dummy(char* inputMaps, int numInputs, int I_W, int I
 
 }
 
+//Remove This
 void initKernals(int kernalSize, int numKernals, float* kernalData) {
 	/*for (size_t kx = 0; kx < kernalSize; kx++)
 	{
@@ -102,19 +105,19 @@ void initKernals(int kernalSize, int numKernals, float* kernalData) {
 
 }
 
+//Remove This
 void Kernal(unsigned char * imgData, unsigned char * imgData_Out) {
 
 	int kernalSize = 3;
 	float * kernalData = new float[kernalSize*kernalSize*3];
 	initKernals(kernalSize, 3, kernalData);
 
-
-	int O_W = 32 - kernalSize + 1;
-	int O_H = 32 - kernalSize + 1;
+	int O_W = 32 - kernalSize + 1; 
+	int O_H = 32 - kernalSize + 1; 
 	int nThreads = O_W * O_H;
 
 	unsigned char* d_in;
-	unsigned char* d_out;
+	unsigned char* d_out; 
 	float* d_kernal;
 
 	cudaError_t error;
@@ -183,14 +186,15 @@ int main()
 	float * kernalData = new float[3 * 3 * 3];
 	initKernals(3, 3, kernalData);
 
-	//Dummy
-
 	std::vector<LayerData> data;
-	data.push_back({ 3, 3 });
+	data.push_back({ 3, 1 });//KernalSize, nOutputs
+	data.push_back({ 3, 1 });
+
+
 
 	ConvNet net(data);
-	net.Init(32, 32, 1);
-	net.SetKernalData(kernalData, 3 * 3 * 3 * sizeof(float));
+	net.Initialize(32, 32, 1);
+	//net.SetKernalData(kernalData, 3 * 3 * 3 * sizeof(float));
 	net.Feed(imgData);
 
 	///*New Program*/return 0;
@@ -215,22 +219,23 @@ int main()
 	
 	for (size_t i = 0; i < 3; i++)
 	{
-		net.GetData(imgData_out, 900, 1024 + 900*i);
+		net.GetData(imgData_out, 784, 1024 + 900);
 
 		for (size_t x = 0; x < 32; x++)
 		{
 			for (size_t y = 0; y < 32; y++)
 			{
-				int pos = x + y * 32;
+				int posOrig = x + y * 32;
+				int posNew = (x - 1) + (y - 1) * 30;
 
 				for (size_t sx = 0; sx < ScaleX; sx++)
 				{
 					for (size_t sy = 0; sy < ScaleY; sy++)
 					{
-						if (x == 0 || x == 31 || y == 0 || y == 31)
+						if (x <= 1 || x >= 30 || y <= 1 || y >= 30)
 							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg * 2 + 1 - i) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg * 2 + 1 - i) % ImagesCount) / ImagesX), sf::Color(255, 255, 255, 255));
 						else
-							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg * 2 + 1 - i) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg * 2 + 1 - i) % ImagesCount) / ImagesX), sf::Color(imgData_out[(x - 1) + (y - 1) * 30], imgData_out[(x - 1) + (y - 1) * 30 + 0], imgData_out[(x - 1) + (y - 1) * 30 + 0], 255));
+							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg * 2 + 1 - i) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg * 2 + 1 - i) % ImagesCount) / ImagesX), sf::Color(imgData_out[(x - 2) + (y - 2) * 28], imgData_out[(x - 2) + (y - 2) * 28 + 0], imgData_out[(x - 2) + (y - 2) * 28 + 0], 255));
 					}
 				}
 			}

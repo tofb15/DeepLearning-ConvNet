@@ -27,7 +27,13 @@ __global__ void ConvLayerFeed(unsigned char* input, int I_W, int I_H, int nInput
 		currKernal += K_WH_2;
 	}
 
-	output[blockIdx.x * blockDim.x * blockDim.y + threadIdx.x + threadIdx.y * blockDim.x] = val;
+	if(val > 0)
+		if(val < 255)
+			output[blockIdx.x * blockDim.x * blockDim.y + threadIdx.x + threadIdx.y * blockDim.x] = val;
+		else
+			output[blockIdx.x * blockDim.x * blockDim.y + threadIdx.x + threadIdx.y * blockDim.x] = 255;
+	else
+		output[blockIdx.x * blockDim.x * blockDim.y + threadIdx.x + threadIdx.y * blockDim.x] = 0;
 }
 
 ConvNet::ConvNet(std::vector<LayerData> layers)
@@ -40,7 +46,7 @@ ConvNet::~ConvNet()
 	Destroy();
 }
 
-void ConvNet::Init(int I_W, int I_H, int numInputs)
+void ConvNet::Initialize(int I_W, int I_H, int numInputs)
 {
 	Destroy();
 	init = true;
@@ -92,6 +98,9 @@ void ConvNet::Init(int I_W, int I_H, int numInputs)
 	if (error != cudaSuccess) {
 		std::cout << "Malloc d_kernalArray error: " << cudaGetErrorString(error) << std::endl;
 	}
+
+	//Kernal
+	InitializeKernal();
 }
 
 void ConvNet::Feed(unsigned char * inputData)
@@ -120,38 +129,44 @@ void ConvNet::Feed(unsigned char * inputData)
 		std::cout << "ConvLayerFeed error: " << cudaGetErrorString(error) << std::endl;
 	}
 
-	//for (size_t i = 1; i < m_layers.size(); i++)
-	//{
-	//	nBlocks = dim3(m_layers[i].numOutputs);
-	//	nThreads = dim3(m_layers[i].O_W, m_layers[i].O_H, 0);
+	for (size_t i = 1; i < m_layers.size(); i++)
+	{
+		nBlocks = dim3(m_layers[i].numOutputs);
+		nThreads = dim3(m_layers[i].O_W, m_layers[i].O_H);
 
-	//	ConvLayerFeed<<<nBlocks, nThreads>>>(d_dataArray  + input_offset, m_layers[i].O_W, m_layers[i].O_H, m_layers[i - 1].numOutputs, d_dataArray + output_offset, m_kernalData + kernal_offset, m_layers[i].kernalSize);
-	//	input_offset = output_offset;
-	//	kernal_offset += m_layers[i].kernalSize * m_layers[i].kernalSize * perLayerData[i].numKernals * sizeof(float);
-	//	output_offset += m_layers[i].numOutputs * m_layers[i].O_W * m_layers[i].O_H;
-	//}
+		input_offset = output_offset;
+		kernal_offset += m_layers[i - 1].kernalSize * m_layers[i - 1].kernalSize * perLayerData[i - 1].numKernals;
+		output_offset += m_layers[i - 1].numOutputs * m_layers[i - 1].O_W * m_layers[i - 1].O_H;
 
-}
+		ConvLayerFeed << <nBlocks, nThreads >> > (d_dataArray + 1024, m_layers[i - 1].O_W, m_layers[i - 1].O_H, m_layers[i - 1].numOutputs, d_dataArray + 900 + 1024, d_kernalArray, 3);
 
-void ConvNet::SetKernalData(const void * kernalData, int bytes, int DeviceOffset)
-{
-	cudaError_t error;
-
-	error = cudaMemcpy(d_kernalArray + DeviceOffset, kernalData, bytes, cudaMemcpyHostToDevice);
-	if (error != cudaSuccess) {
-		std::cout << "SetKernalData error: " << cudaGetErrorString(error) << std::endl;
+		error = cudaGetLastError();
+		if (error != cudaSuccess) {
+			std::cout << "ConvLayerFeed error #" << i << ": " << cudaGetErrorString(error) << std::endl;
+		}
 	}
+
 }
 
-void ConvNet::GetKernalData(void * kernalData, int bytes, int DeviceOffset)
-{
-	cudaError_t error;
-
-	error = cudaMemcpy(kernalData, d_kernalArray + DeviceOffset, bytes, cudaMemcpyDeviceToHost);
-	if (error != cudaSuccess) {
-		std::cout << "GetKernalData error: " << cudaGetErrorString(error) << std::endl;
-	}
-}
+//void ConvNet::SetKernalData(const void * kernalData, int bytes, int DeviceOffset)
+//{
+//	cudaError_t error;
+//
+//	error = cudaMemcpy(d_kernalArray + DeviceOffset, kernalData, bytes, cudaMemcpyHostToDevice);
+//	if (error != cudaSuccess) {
+//		std::cout << "SetKernalData error: " << cudaGetErrorString(error) << std::endl;
+//	}
+//}
+//
+//void ConvNet::GetKernalData(void * kernalData, int bytes, int DeviceOffset)
+//{
+//	cudaError_t error;
+//
+//	error = cudaMemcpy(kernalData, d_kernalArray + DeviceOffset, bytes, cudaMemcpyDeviceToHost);
+//	if (error != cudaSuccess) {
+//		std::cout << "GetKernalData error: " << cudaGetErrorString(error) << std::endl;
+//	}
+//}
 
 void ConvNet::GetData(unsigned char * arrayData, int bytes, int DeviceOffset)
 {
@@ -169,10 +184,48 @@ void ConvNet::Destroy()
 		return;
 
 	//Free Host
-	delete[] m_kernalData;
+	delete[] h_kernalArray;
 	delete[] perLayerData;
 
 	//Free Device
 	cudaFree(d_dataArray);
 	cudaFree(d_kernalArray);
+}
+
+void ConvNet::InitializeKernal()
+{
+	int startInitFromIndex = 0;
+	h_kernalArray = new float[m_kernalArraySize];
+
+	int left = m_numInputs * m_layers[0].numOutputs;
+	int i = 0;
+	int j = 0;
+	do
+	{
+		while (left > 0)
+		{
+			h_kernalArray[j++] = 0;
+			h_kernalArray[j++] = -1;
+			h_kernalArray[j++] = 0;
+			h_kernalArray[j++] = -1;
+			h_kernalArray[j++] = 4;
+			h_kernalArray[j++] = -1;
+			h_kernalArray[j++] = 0;
+			h_kernalArray[j++] = -1;
+			h_kernalArray[j++] = 0;
+			left--;
+		}
+
+		if (i + 1 < m_layers.size())
+			left = m_layers[i].numOutputs * m_layers[i + 1].numOutputs;
+
+		i++;
+	} while (i < m_layers.size() - 1);
+
+	cudaError_t error;
+
+ 	error = cudaMemcpy(d_kernalArray, h_kernalArray, m_kernalArraySize, cudaMemcpyHostToDevice);
+	if (error != cudaSuccess) {
+		std::cout << "SetKernalData error: " << cudaGetErrorString(error) << std::endl;
+	}
 }

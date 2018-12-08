@@ -32,10 +32,10 @@ public:
 	ConvNet(std::vector<LayerData> layers);
 	~ConvNet();
 
-	void Init(int I_W, int I_H, int numInputs);
+	void Initialize(int I_W, int I_H, int numInputs);
 	void Feed(unsigned char* inputData);
-	void SetKernalData(const void* kernalData, int bytes, int DeviceOffset = 0);
-	void GetKernalData(void* kernalData, int bytes, int DeviceOffset = 0);
+	//void SetKernalData(const void* kernalData, int bytes, int DeviceOffset = 0);
+	//void GetKernalData(void* kernalData, int bytes, int DeviceOffset = 0);
 	void GetData(unsigned char* arrayData, int bytes, int DeviceOffset = 0);
 
 private:
@@ -44,21 +44,17 @@ private:
 
 	int m_I_W, m_I_H, m_numInputs, m_I_Size;
 
-	float * m_kernalData;
+	float * h_kernalArray;
 	PerLayerData* perLayerData;
 
 	int m_kernalArraySize;	//Size in bytes
 	int m_dataArraySize;	//Size in bytes
-	
-	/*
-	unsigned char* h_input;
-	unsigned char* h_output;
-	*/
 
 	unsigned char* d_dataArray;
 	float* d_kernalArray;
 
 	void Destroy();
+	void InitializeKernal();
 
 };
 
