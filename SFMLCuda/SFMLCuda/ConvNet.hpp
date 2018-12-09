@@ -11,16 +11,6 @@ enum class LAYER_TYPE
 	NN
 };
 
-struct LayerData {
-	LAYER_TYPE type;
-	int kernalSize = 0;
-	int numOutputs = 0;
-	int O_W = 0, O_H = 0;
-	int numKernals = 0;
-	int numThreads = 0;
-	int stride = 1;
-};
-
 //struct PerLayerData
 //{
 //	int numKernals;
@@ -38,13 +28,23 @@ public:
 	void AddLayer(LAYER_TYPE type, int args...);
 
 	void Initialize();
-	void Feed(unsigned char* inputData);
+	void Feed(float* inputData);
 	//void SetKernalData(const void* kernalData, int bytes, int DeviceOffset = 0);
 	//void GetKernalData(void* kernalData, int bytes, int DeviceOffset = 0);
-	void GetData(unsigned char* arrayData, int bytes, int DeviceOffset = 0);
-	void GetData(unsigned char* arrayData, int& dataWidth, int& dataHeight, int maxBytes, int layerIndex = 0, int outputIndex = 0);
+	void GetData(float* arrayData, int bytes, int DeviceOffset = 0);
+	void GetData(float* arrayData, int& dataWidth, int& dataHeight, int maxBytes, int layerIndex = 0, int outputIndex = 0);
 
 private:
+	struct LayerData {
+		LAYER_TYPE type;
+		int kernalSize = 0;
+		int numOutputs = 0;
+		int O_W = 0, O_H = 0;
+		int numKernals = 0;
+		int numThreads = 0;
+		int stride = 1;
+	};
+
 	bool init = false;
 	std::vector<LayerData> m_layers;
 
@@ -53,7 +53,7 @@ private:
 	int m_kernalArraySize = 0;	//Size in bytes needed on the GPU to store all kernals.
 	int m_dataArraySize = 0;	//Size in bytes needed on the GPU to store the input and all layer outputs.
 
-	unsigned char* d_dataArray; // pointer to GPU layerdata storage
+	float* d_dataArray; // pointer to GPU layerdata storage
 	float* d_kernalArray;		// pointer to GPU kernal storage
 
 	void Destroy();

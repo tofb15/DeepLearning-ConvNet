@@ -8,8 +8,12 @@
 
 #include "ConvNet.hpp"
 
+#include <stdio.h>      /* printf, NULL */
+#include <stdlib.h>     /* srand, rand */
+#include <time.h>       /* time */
+
 //Remove This
-__global__ void applyKernal(unsigned char* inputMaps, int numInputs, int I_W, int I_H, unsigned char* outputMaps, int numOutputs, float* kernalData, int K_WH) {
+__global__ void applyKernal(float* inputMaps, int numInputs, int I_W, int I_H, float* outputMaps, int numOutputs, float* kernalData, int K_WH) {
 
 	int id = threadIdx.x;
 
@@ -41,7 +45,10 @@ __global__ void applyKernal(unsigned char* inputMaps, int numInputs, int I_W, in
 		}
 	}
 	
-	outputMaps[id] = val;
+	if(val > 0)
+		outputMaps[id] = val;
+	else
+		outputMaps[id] = 0;
 
 }
 
@@ -106,7 +113,7 @@ void initKernals(int kernalSize, int numKernals, float* kernalData) {
 }
 
 //Remove This
-void Kernal(unsigned char * imgData, unsigned char * imgData_Out) {
+void Kernal(float * imgData, float * imgData_Out) {
 
 	int kernalSize = 3;
 	float * kernalData = new float[kernalSize*kernalSize*3];
@@ -116,33 +123,33 @@ void Kernal(unsigned char * imgData, unsigned char * imgData_Out) {
 	int O_H = 32 - kernalSize + 1; 
 	int nThreads = O_W * O_H;
 
-	unsigned char* d_in;
-	unsigned char* d_out; 
+	float* d_in;
+	float* d_out; 
 	float* d_kernal;
 
 	cudaError_t error;
 
-	error = cudaMalloc((void**)&d_in, 1024*3);
+	error = cudaMalloc((void**)&d_in, 1024 * 3 * sizeof(float));
 	if (error != cudaSuccess) {
 		std::cout << "Malloc in error" << cudaGetErrorString(error) << std::endl;
 	}
 
-	error = cudaMalloc((void**)&d_out, 900);
+	error = cudaMalloc((void**)&d_out, 900 * sizeof(float));
 	if (error != cudaSuccess) {
 		std::cout << "Malloc out error" << cudaGetErrorString(error) << std::endl;
 	}
 
-	error = cudaMalloc((void**)&d_kernal, 9*sizeof(float));
+	error = cudaMalloc((void**)&d_kernal, 9 * sizeof(float));
 	if (error != cudaSuccess) {
 		std::cout << "Malloc kernal error" << cudaGetErrorString(error) << std::endl;
 	}
 
-	error = cudaMemcpy(d_in, imgData, 1024*3, cudaMemcpyHostToDevice);
+	error = cudaMemcpy(d_in, imgData, 1024 * 3 * sizeof(float), cudaMemcpyHostToDevice);
 	if (error != cudaSuccess) {
 		std::cout << "cpy in error" << cudaGetErrorString(error) << std::endl;
 	}
 
-	error = cudaMemcpy(d_kernal, kernalData, 9*sizeof(float), cudaMemcpyHostToDevice);
+	error = cudaMemcpy(d_kernal, kernalData, 9 * sizeof(float), cudaMemcpyHostToDevice);
 	if (error != cudaSuccess) {
 		std::cout << "cpy out error" << cudaGetErrorString(error) << std::endl;
 	}
@@ -154,7 +161,7 @@ void Kernal(unsigned char * imgData, unsigned char * imgData_Out) {
 		std::cout << "Launch error" << cudaGetErrorString(error) << std::endl;
 	}
 
-	error = cudaMemcpy(imgData_Out, d_out, 900, cudaMemcpyDeviceToHost);
+	error = cudaMemcpy(imgData_Out, d_out, 900 * sizeof(float), cudaMemcpyDeviceToHost);
 	if (error != cudaSuccess) {
 		std::cout << "cpy out error" << cudaGetErrorString(error) << std::endl;
 	}
@@ -166,15 +173,23 @@ void Kernal(unsigned char * imgData, unsigned char * imgData_Out) {
 	cudaDeviceSynchronize();
 }
 
+void charToFloat(float* dest, const unsigned char* src, int nElements) {
+	for (size_t i = 0; i < nElements; i++)
+	{
+		dest[i] = (float)(src[i]) / 255.0f;
+	}
+}
 
-void loadImg(unsigned char* data, int imgID) {
+void loadImg(float* data, int imgID) {
 
+	unsigned char temp[3072];
 	std::ifstream in("cifar-10-batches-bin/data_batch_1.bin", std::ios::binary);
 	char class_id;
 	in.seekg(imgID * 3073 + 1, in.beg);
-	in.read((char *)(data), 3072);
-
+	in.read((char *)(temp), 3072);
 	in.close();
+
+	charToFloat(data, temp, 3072);
 }
 
 void getLayerOutputAsImage(char* data, ConvNet* network, int layerIndex, int outputIndex) {
@@ -183,9 +198,12 @@ void getLayerOutputAsImage(char* data, ConvNet* network, int layerIndex, int out
 
 int main()
 {
+	std::srand(time(NULL));
+
 	int curImg = 4;
-	unsigned char imgData[3072];
-	unsigned char imgData_out[3072];
+	float imgData[3072];
+	float imgData_out[3072];
+
 	loadImg(imgData, curImg);
 	float * kernalData = new float[3 * 3 * 3];
 	initKernals(3, 3, kernalData);
@@ -194,10 +212,16 @@ int main()
 	net.AddLayer(LAYER_TYPE::ConvLayer, 2, 3, 1);
 	//net.AddLayer(LAYER_TYPE::ConvLayer, 2, 3, 1);
 	net.AddLayer(LAYER_TYPE::PoolLayer, 1, 2);
-	//net.AddLayer(LAYER_TYPE::ConvLayer, 4, 2, 3, 4, 5);
+	net.AddLayer(LAYER_TYPE::NN, 1, 10);
+	net.AddLayer(LAYER_TYPE::NN, 1, 10);
+
 
 	net.Initialize();
 	net.Feed(imgData);
+
+	//int ow = 0;
+	//int oh = 0;
+	//net.GetData(imgData_out, ow, oh, 3072, 4, 0);
 
 	///*New Program*/return 0;
 
@@ -217,13 +241,15 @@ int main()
 
 	img.create(32 * ImagesX * ScaleX, 32 * ImagesY * ScaleY);
 
-	sf::RenderWindow window(sf::VideoMode(32 * ImagesX * ScaleX, 32 * ImagesY * ScaleY), "SFML-Cuda");
+	sf::RenderWindow window(sf::VideoMode(32 * ImagesX * ScaleX, 32 * ImagesY * ScaleY), "ConvNet");
 	
 	for (size_t i = 0; i < 3; i++)
 	{
 		int ow = 0;
 		int oh = 0;
 		net.GetData(imgData_out, ow, oh, 3072, i, 0);
+
+		int imgPosOfset = - 3 + i;
 
 		for (size_t x = 0; x < 32; x++)
 		{
@@ -240,9 +266,9 @@ int main()
 						int diffY = (32 - ow) / 2;
 
 						if (x < diffX || x >= 32 - diffX || y < diffY || y >= 32 - diffY)
-							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg * 2 + 1 - i) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg * 2 + 1 - i) % ImagesCount) / ImagesX), sf::Color(255, 255, 255, 255));
+							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg * 2 + imgPosOfset) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg * 2 + imgPosOfset) % ImagesCount) / ImagesX), sf::Color(255, 255, 255, 255));
 						else
-							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg * 2 + 1 - i) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg * 2 + 1 - i) % ImagesCount) / ImagesX), sf::Color(imgData_out[(x - diffX) + (y - diffY) * ow], imgData_out[(x - diffX) + (y - diffY) * ow + 0], imgData_out[(x - diffX) + (y - diffY) * ow + 0], 255));
+							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg * 2 + imgPosOfset) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg * 2 + imgPosOfset) % ImagesCount) / ImagesX), sf::Color(imgData_out[(x - diffX) + (y - diffY) * ow] * 255, imgData_out[(x - diffX) + (y - diffY) * ow + 0] * 255, imgData_out[(x - diffX) + (y - diffY) * ow + 0] * 255, 255));
 					}
 				}
 			}
@@ -288,16 +314,13 @@ int main()
 					{
 						for (size_t sy = 0; sy < 2; sy++)
 						{
-							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg*2) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg*2) % ImagesCount) / ImagesX), sf::Color(imgData[x + y * 32], imgData[x + y * 32], imgData[x + y * 32], 255));
+							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg*2) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg*2) % ImagesCount) / ImagesX), sf::Color(imgData[x + y * 32] * 255, imgData[x + y * 32] * 255, imgData[x + y * 32] * 255, 255));
 						}
 					}
 				}
 			}
 
 			Kernal(imgData, imgData_out);
-			//Kernal(imgData, imgData_out + 900);
-			//Kernal(imgData, imgData_out + 1800);
-
 
 			for (size_t x = 0; x < 32; x++)
 			{
@@ -312,7 +335,7 @@ int main()
 							if (x == 0 || x == 31 || y == 0 || y == 31)
 								img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg*2 + 1) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg*2 + 1) % ImagesCount) / ImagesX), sf::Color(255, 255, 255, 255));
 							else
-								img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg*2 + 1) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg*2 + 1) % ImagesCount) / ImagesX), sf::Color(imgData_out[(x - 1) + (y - 1) * 30], imgData_out[(x - 1) + (y - 1) * 30 + 0], imgData_out[(x - 1) + (y - 1) * 30 + 0], 255));
+								img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg*2 + 1) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg*2 + 1) % ImagesCount) / ImagesX), sf::Color(imgData_out[(x - 1) + (y - 1) * 30] * 255, imgData_out[(x - 1) + (y - 1) * 30 + 0] * 255, imgData_out[(x - 1) + (y - 1) * 30 + 0] * 255, 255));
 						}
 					}
 				}
