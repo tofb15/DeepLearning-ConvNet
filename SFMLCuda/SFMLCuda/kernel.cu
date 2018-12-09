@@ -177,6 +177,10 @@ void loadImg(unsigned char* data, int imgID) {
 	in.close();
 }
 
+void getLayerOutputAsImage(char* data, ConvNet* network, int layerIndex, int outputIndex) {
+
+}
+
 int main()
 {
 	int curImg = 4;
@@ -186,19 +190,13 @@ int main()
 	float * kernalData = new float[3 * 3 * 3];
 	initKernals(3, 3, kernalData);
 
-	//std::vector<LayerData> data;
-	//data.push_back({ LAYER_TYPE::ConvLayer, 3, 1});//KernalSize, nOutputs
-	//data.push_back({ LAYER_TYPE::ConvLayer, 3, 1 });
-
-
-
 	ConvNet net(32, 32, 1);
 	net.AddLayer(LAYER_TYPE::ConvLayer, 2, 3, 1);
-	net.AddLayer(LAYER_TYPE::ConvLayer, 2, 3, 1);
+	//net.AddLayer(LAYER_TYPE::ConvLayer, 2, 3, 1);
+	net.AddLayer(LAYER_TYPE::PoolLayer, 1, 2);
 	//net.AddLayer(LAYER_TYPE::ConvLayer, 4, 2, 3, 4, 5);
 
 	net.Initialize();
-	//net.SetKernalData(kernalData, 3 * 3 * 3 * sizeof(float));
 	net.Feed(imgData);
 
 	///*New Program*/return 0;
@@ -223,7 +221,9 @@ int main()
 	
 	for (size_t i = 0; i < 3; i++)
 	{
-		net.GetData(imgData_out, 784, 1024 + 900);
+		int ow = 0;
+		int oh = 0;
+		net.GetData(imgData_out, ow, oh, 3072, i, 0);
 
 		for (size_t x = 0; x < 32; x++)
 		{
@@ -236,10 +236,13 @@ int main()
 				{
 					for (size_t sy = 0; sy < ScaleY; sy++)
 					{
-						if (x <= 1 || x >= 30 || y <= 1 || y >= 30)
+						int diffX = (32 - ow) / 2;
+						int diffY = (32 - ow) / 2;
+
+						if (x < diffX || x >= 32 - diffX || y < diffY || y >= 32 - diffY)
 							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg * 2 + 1 - i) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg * 2 + 1 - i) % ImagesCount) / ImagesX), sf::Color(255, 255, 255, 255));
 						else
-							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg * 2 + 1 - i) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg * 2 + 1 - i) % ImagesCount) / ImagesX), sf::Color(imgData_out[(x - 2) + (y - 2) * 28], imgData_out[(x - 2) + (y - 2) * 28 + 0], imgData_out[(x - 2) + (y - 2) * 28 + 0], 255));
+							img.setPixel(x * ScaleX + sx + 32 * ScaleX*((curImg * 2 + 1 - i) % ImagesX), y * ScaleY + sy + 32 * ScaleY * (((curImg * 2 + 1 - i) % ImagesCount) / ImagesX), sf::Color(imgData_out[(x - diffX) + (y - diffY) * ow], imgData_out[(x - diffX) + (y - diffY) * ow + 0], imgData_out[(x - diffX) + (y - diffY) * ow + 0], 255));
 					}
 				}
 			}

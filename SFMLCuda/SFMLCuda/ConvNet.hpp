@@ -18,6 +18,7 @@ struct LayerData {
 	int O_W = 0, O_H = 0;
 	int numKernals = 0;
 	int numThreads = 0;
+	int stride = 1;
 };
 
 //struct PerLayerData
@@ -41,15 +42,16 @@ public:
 	//void SetKernalData(const void* kernalData, int bytes, int DeviceOffset = 0);
 	//void GetKernalData(void* kernalData, int bytes, int DeviceOffset = 0);
 	void GetData(unsigned char* arrayData, int bytes, int DeviceOffset = 0);
+	void GetData(unsigned char* arrayData, int& dataWidth, int& dataHeight, int maxBytes, int layerIndex = 0, int outputIndex = 0);
 
 private:
 	bool init = false;
 	std::vector<LayerData> m_layers;
 
-	float * h_kernalArray;  //Kernal Data will be Initialize here before sent to the GPU during initialization.
+	float * h_kernalArray;  //Kernal data will be Initialize here before sent to the GPU during initialization.
 
-	int m_kernalArraySize;	//Size in bytes needed on the GPU to store all kernals.
-	int m_dataArraySize;	//Size in bytes needed on the GPU to store the input and all layer outputs.
+	int m_kernalArraySize = 0;	//Size in bytes needed on the GPU to store all kernals.
+	int m_dataArraySize = 0;	//Size in bytes needed on the GPU to store the input and all layer outputs.
 
 	unsigned char* d_dataArray; // pointer to GPU layerdata storage
 	float* d_kernalArray;		// pointer to GPU kernal storage
