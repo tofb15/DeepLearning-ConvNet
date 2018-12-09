@@ -12,27 +12,31 @@ enum class LAYER_TYPE
 };
 
 struct LayerData {
-	//LAYER_TYPE type;
-	int kernalSize;
-	int numOutputs;
-	int O_W, O_H;
+	LAYER_TYPE type;
+	int kernalSize = 0;
+	int numOutputs = 0;
+	int O_W = 0, O_H = 0;
+	int numKernals = 0;
+	int numThreads = 0;
 };
 
-struct PerLayerData
-{
-	int numKernals;
-	int numThreads;
-	//int kernalOffset;
-	//int dataInputOffset;
-};
+//struct PerLayerData
+//{
+//	int numKernals;
+//	int numThreads;
+//	//int kernalOffset;
+//	//int dataInputOffset;
+//};
 
 class ConvNet
 {
 public:
-	ConvNet(std::vector<LayerData> layers);
+	ConvNet(int nInputs, int I_W, int I_H);
 	~ConvNet();
 
-	void Initialize(int I_W, int I_H, int numInputs);
+	void AddLayer(LAYER_TYPE type, int args...);
+
+	void Initialize();
 	void Feed(unsigned char* inputData);
 	//void SetKernalData(const void* kernalData, int bytes, int DeviceOffset = 0);
 	//void GetKernalData(void* kernalData, int bytes, int DeviceOffset = 0);
@@ -42,16 +46,13 @@ private:
 	bool init = false;
 	std::vector<LayerData> m_layers;
 
-	int m_I_W, m_I_H, m_numInputs, m_I_Size;
+	float * h_kernalArray;  //Kernal Data will be Initialize here before sent to the GPU during initialization.
 
-	float * h_kernalArray;
-	PerLayerData* perLayerData;
+	int m_kernalArraySize;	//Size in bytes needed on the GPU to store all kernals.
+	int m_dataArraySize;	//Size in bytes needed on the GPU to store the input and all layer outputs.
 
-	int m_kernalArraySize;	//Size in bytes
-	int m_dataArraySize;	//Size in bytes
-
-	unsigned char* d_dataArray;
-	float* d_kernalArray;
+	unsigned char* d_dataArray; // pointer to GPU layerdata storage
+	float* d_kernalArray;		// pointer to GPU kernal storage
 
 	void Destroy();
 	void InitializeKernal();
@@ -59,6 +60,3 @@ private:
 };
 
 #endif // !CONVNET?HPP
-
-
-

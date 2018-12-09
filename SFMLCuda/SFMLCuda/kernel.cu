@@ -171,7 +171,7 @@ void loadImg(unsigned char* data, int imgID) {
 
 	std::ifstream in("cifar-10-batches-bin/data_batch_1.bin", std::ios::binary);
 	char class_id;
-	in.seekg(imgID*3073 + 1, in.beg);
+	in.seekg(imgID * 3073 + 1, in.beg);
 	in.read((char *)(data), 3072);
 
 	in.close();
@@ -186,14 +186,18 @@ int main()
 	float * kernalData = new float[3 * 3 * 3];
 	initKernals(3, 3, kernalData);
 
-	std::vector<LayerData> data;
-	data.push_back({ 3, 1 });//KernalSize, nOutputs
-	data.push_back({ 3, 1 });
+	//std::vector<LayerData> data;
+	//data.push_back({ LAYER_TYPE::ConvLayer, 3, 1});//KernalSize, nOutputs
+	//data.push_back({ LAYER_TYPE::ConvLayer, 3, 1 });
 
 
 
-	ConvNet net(data);
-	net.Initialize(32, 32, 1);
+	ConvNet net(32, 32, 1);
+	net.AddLayer(LAYER_TYPE::ConvLayer, 2, 3, 1);
+	net.AddLayer(LAYER_TYPE::ConvLayer, 2, 3, 1);
+	//net.AddLayer(LAYER_TYPE::ConvLayer, 4, 2, 3, 4, 5);
+
+	net.Initialize();
 	//net.SetKernalData(kernalData, 3 * 3 * 3 * sizeof(float));
 	net.Feed(imgData);
 
