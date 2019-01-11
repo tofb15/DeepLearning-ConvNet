@@ -82,14 +82,21 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <CudaCompile Include="ConvLayer.cu" />
     <CudaCompile Include="ConvNet2.cu" />
+    <CudaCompile Include="InputLayer.cu" />
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="Layer.cu" />
+    <CudaCompile Include="MaxPoolLayer.cu" />
+    <CudaCompile Include="NNLayer.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Source.cpp" />
-  </ItemGroup>
-  <ItemGroup>
+    <ClInclude Include="ConvLayer.hpp" />
     <ClInclude Include="ConvNet.hpp" />
+    <ClInclude Include="InputLayer.hpp" />
+    <ClInclude Include="Layer.hpp" />
+    <ClInclude Include="MaxPoolLayer.hpp" />
+    <ClInclude Include="NNLayer.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

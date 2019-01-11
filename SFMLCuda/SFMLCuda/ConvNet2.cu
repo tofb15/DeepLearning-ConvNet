@@ -1,3 +1,11 @@
+/**
+	ConvNet2.cpp
+	Purpose: ConvNet implementation
+
+	@author Tobias Fast
+	@version 1.0 9/12/18
+*/
+
 #include "ConvNet.hpp"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -8,90 +16,13 @@
 #include <stdlib.h>     /* srand, rand */
 #include <time.h>       /* time */
 
-__global__ void ConvLayerFeed(float* input, int I_W, int I_H, int nInputs, float* output, float* kernals, int K_WH) {
-
-	int I_Size = I_W * I_H;
-	int K_WH_2 = K_WH * K_WH;
-
-	//int nKernals = nInputs * nOutputs;
-	//int kernalSize = K_WH * K_WH * nKernals;
-
-	int kernalOffset = blockIdx.x * K_WH_2 * nInputs;
-
-	float val = 0;
-	int currKernal = 0;
-	for (size_t i = 0; i < nInputs; i++)
-	{
-		for (size_t ky = 0; ky < K_WH; ky++)
-		{
-			for (size_t kx = 0; kx < K_WH; kx++)
-			{
-				val += input[(threadIdx.x + kx) + (threadIdx.y + ky) * I_W + I_Size * i] * kernals[kernalOffset + currKernal + ky * K_WH + kx];
-			}
-		}
-		currKernal += K_WH_2;
-	}
-
-	if(val > 0)
-		output[blockIdx.x * blockDim.x * blockDim.y + threadIdx.x + threadIdx.y * blockDim.x] = val;
-	else
-		output[blockIdx.x * blockDim.x * blockDim.y + threadIdx.x + threadIdx.y * blockDim.x] = 0;
-}
-
-__global__ void MaxPoolLayer(float* input, int I_W, int I_H, float* output, int K_WH, int stride) {
-
-	float max = 0;
-	int in_x = threadIdx.x * stride;
-	int in_y = threadIdx.y * stride;
-
-	for (size_t ky = 0; ky < K_WH; ky++)
-	{
-		for (size_t kx = 0; kx < K_WH; kx++)
-		{
-			float val = input[(in_x + kx) + (in_y + ky) * I_W + blockIdx.x * I_W * I_H];
-			if (val > max)
-				max = val;
-		}
-	}
-
-	output[threadIdx.x + threadIdx.y * blockDim.x + blockIdx.x * blockDim.x * blockDim.y] = max;
-}
-
-__global__ void NNLayer(float* input, int nInputs, float* output, float* weights) {
-	
-	//float max = 0;
-	//
-	//for (size_t i = 0; i < nInputs; i++)
-	//{
-	//		float val = weights[i * blockDim.x + threadIdx.x];
-	//		//if (val > max)
-	//			max += val;
-	//}
-
-	//output[threadIdx.x + threadIdx.y * blockDim.x + blockIdx.x * blockDim.x * blockDim.y] = max/nInputs;
-	
-	
-	float val = 0;
-	for (size_t i = 0; i < nInputs; i++)
-	{
-		val += input[i] * weights[blockDim.x * threadIdx.x + i];
-	}
-
-	val = tanhf(val);
-
-	output[threadIdx.x] = val;
-}
+#include "InputLayer.hpp"
 
 ConvNet::ConvNet(int I_W, int I_H, int nInputs)
 {
-	LayerData input;
-	input.numOutputs = nInputs;
-	input.O_W = I_W;
-	input.O_H = I_H;
 
+	InputLayer* input = new InputLayer(I_W, I_H, nInputs);
 	m_layers.push_back(input);
-
-	m_dataArraySize = input.O_W * input.O_H * input.numOutputs * sizeof(float);
 }
 
 ConvNet::~ConvNet()
@@ -109,206 +40,220 @@ ConvNet::~ConvNet()
 
 	@return
 */
-void ConvNet::AddLayer(LAYER_TYPE type, int args ...)
-{
-	va_list args__;
-	va_start(args__, args);
-	LayerData layerData;
+//void ConvNet::AddLayer(LAYER_TYPE type, int args ...)
+//{
+//	va_list args__;
+//	va_start(args__, args);
+//	LayerData layerData;
+//
+//	layerData.type = type;
+//
+//	int maxInputs;
+//	if (type == LAYER_TYPE::ConvLayer) {
+//		maxInputs = 3;
+//
+//		//Set user values
+//		for (size_t i = 0; i < args && i < maxInputs; i++)
+//		{
+//			int val = va_arg(args__, int);
+//
+//			switch (i)
+//			{
+//			case 0:
+//				layerData.kernalSize = val;
+//				break;
+//			case 1:
+//				layerData.numOutputs = val;
+//				break;
+//			case 2:
+//				layerData.stride = val;
+//				break;
+//			default:
+//				break;
+//			}
+//		}
+//
+//		//Set default values
+//		for (size_t i = args; i < maxInputs; i++)
+//		{
+//			switch (i)
+//			{
+//			case 0:
+//				layerData.kernalSize = 3;
+//				break;
+//			case 1:
+//				layerData.numOutputs = 1;
+//				break;
+//			case 2:
+//				layerData.stride = 1;
+//				break;
+//			default:
+//				break;
+//			}
+//		}
+//
+//
+//		//Calculate number of kernals needed
+//		layerData.numKernals = m_layers[m_layers.size() - 1].numOutputs * layerData.numOutputs;
+//
+//		//Calculate Layer Output Dimensions
+//		layerData.O_W = (m_layers[m_layers.size() - 1].O_W - layerData.kernalSize) / layerData.stride + 1;
+//		layerData.O_H = (m_layers[m_layers.size() - 1].O_H - layerData.kernalSize) / layerData.stride + 1;
+//	}
+//	else if (type == LAYER_TYPE::PoolLayer) {
+//		maxInputs = 2;
+//
+//		//Set user values
+//		for (size_t i = 0; i < args && i < maxInputs; i++)
+//		{
+//			int val = va_arg(args__, int);
+//
+//			switch (i)
+//			{
+//			case 0:
+//				layerData.kernalSize = val;
+//				break;
+//			case 1:
+//				layerData.stride = val;
+//				break;
+//			default:
+//				break;
+//			}
+//		}
+//
+//		//Set default values
+//		for (size_t i = args; i < maxInputs; i++)
+//		{
+//			switch (i)
+//			{
+//			case 0:
+//				layerData.kernalSize = 2;
+//				break;
+//			case 1:
+//				layerData.stride = layerData.kernalSize;
+//				break;
+//			default:
+//				break;
+//			}
+//		}
+//
+//		//Maxpool have same number of outputs as the layer before it
+//		layerData.numOutputs = m_layers[m_layers.size() - 1].numOutputs;
+//
+//		//Calculate Layer Output Dimensions
+//		layerData.O_W = (m_layers[m_layers.size() - 1].O_W - layerData.kernalSize) / layerData.stride + 1;
+//		layerData.O_H = (m_layers[m_layers.size() - 1].O_H - layerData.kernalSize) / layerData.stride + 1;
+//	}
+//	else if (type == LAYER_TYPE::NN) {
+//
+//		maxInputs = 1;
+//
+//		//Set user values
+//		for (size_t i = 0; i < args && i < maxInputs; i++)
+//		{
+//			int val = va_arg(args__, int);
+//
+//			switch (i)
+//			{
+//			case 0:
+//				layerData.O_W = val;
+//				break;
+//			default:
+//				break;
+//			}
+//		}
+//
+//		//Set default values
+//		for (size_t i = args; i < maxInputs; i++)
+//		{
+//			switch (i)
+//			{
+//			case 0:
+//				layerData.O_W = 10;
+//				break;
+//			default:
+//				break;
+//			}
+//		}
+//
+//
+//		layerData.numOutputs = 1;
+//		layerData.O_H = 1;
+//		layerData.kernalSize = 1;
+//
+//		//Calculate number of kernals needed
+//		layerData.numKernals = m_layers[m_layers.size() - 1].numOutputs *  m_layers[m_layers.size() - 1].O_H * m_layers[m_layers.size() - 1].O_W * layerData.O_W;
+//
+//	}
+//
+//	//Calculate number of threads needed. (One thread per output pixel)
+//	layerData.numThreads = layerData.O_W * layerData.O_H * layerData.numOutputs;
+//
+//	//Increese amount of datastorage needed on GPU
+//	m_kernalArraySize += layerData.numKernals * layerData.kernalSize * layerData.kernalSize * sizeof(float);
+//	m_dataArraySize += layerData.numThreads * sizeof(float);
+//
+//	//Add new layer to the layer vector
+//	m_layers.push_back(layerData);
+//
+//	va_end(args__);
+//}
+//
+//void ConvNet::Initialize()
+//{
+//	Destroy();
+//	init = true;
+//
+//	//Cuda Stuff
+//	cudaError_t error;
+//
+//	error = cudaMalloc((void**)&d_dataArray, m_dataArraySize);
+//	if (error != cudaSuccess) {
+//		std::cout << "Malloc d_dataArray error: " << cudaGetErrorString(error) << std::endl;
+//	}
+//
+//	error = cudaMalloc((void**)&d_kernalArray, m_kernalArraySize);
+//	if (error != cudaSuccess) {
+//		std::cout << "Malloc d_kernalArray error: " << cudaGetErrorString(error) << std::endl;
+//	}
+//
+//	//Kernal
+//	InitializeKernal();
+//}
 
-	layerData.type = type;
-
-	int maxInputs;
-	if (type == LAYER_TYPE::ConvLayer) {
-		maxInputs = 3;
-
-		//Set user values
-		for (size_t i = 0; i < args && i < maxInputs; i++)
-		{
-			int val = va_arg(args__, int);
-
-			switch (i)
-			{
-			case 0:
-				layerData.kernalSize = val;
-				break;
-			case 1:
-				layerData.numOutputs = val;
-				break;
-			case 2:
-				layerData.stride = val;
-				break;
-			default:
-				break;
-			}
-		}
-
-		//Set default values
-		for (size_t i = args; i < maxInputs; i++)
-		{
-			switch (i)
-			{
-			case 0:
-				layerData.kernalSize = 3;
-				break;
-			case 1:
-				layerData.numOutputs = 1;
-				break;
-			case 2:
-				layerData.numOutputs = 1;
-				break;
-			default:
-				break;
-			}
-		}
-
-
-		//Calculate number of kernals needed
-		layerData.numKernals = m_layers[m_layers.size() - 1].numOutputs * layerData.numOutputs;
-
-		//Calculate Layer Output Dimensions
-		layerData.O_W = (m_layers[m_layers.size() - 1].O_W - layerData.kernalSize) / layerData.stride + 1;
-		layerData.O_H = (m_layers[m_layers.size() - 1].O_H - layerData.kernalSize) / layerData.stride + 1;
-	}
-	else if (type == LAYER_TYPE::PoolLayer) {
-		maxInputs = 2;
-
-		//Set user values
-		for (size_t i = 0; i < args && i < maxInputs; i++)
-		{
-			int val = va_arg(args__, int);
-
-			switch (i)
-			{
-			case 0:
-				layerData.kernalSize = val;
-				break;
-			case 1:
-				layerData.stride = val;
-				break;
-			default:
-				break;
-			}
-		}
-
-		//Set default values
-		for (size_t i = args; i < maxInputs; i++)
-		{
-			switch (i)
-			{
-			case 0:
-				layerData.kernalSize = 2;
-				break;
-			case 1:
-				layerData.stride = layerData.kernalSize;
-				break;
-			default:
-				break;
-			}
-		}
-
-		//Maxpool have same number of outputs as the layer before it
-		layerData.numOutputs = m_layers[m_layers.size() - 1].numOutputs;
-
-		//Calculate Layer Output Dimensions
-		layerData.O_W = (m_layers[m_layers.size() - 1].O_W - layerData.kernalSize) / layerData.stride + 1;
-		layerData.O_H = (m_layers[m_layers.size() - 1].O_H - layerData.kernalSize) / layerData.stride + 1;
-	}
-	else if (type == LAYER_TYPE::NN) {
-
-		maxInputs = 1;
-
-		//Set user values
-		for (size_t i = 0; i < args && i < maxInputs; i++)
-		{
-			int val = va_arg(args__, int);
-
-			switch (i)
-			{
-			case 0:
-				layerData.O_W = val;
-				break;
-			default:
-				break;
-			}
-		}
-
-		//Set default values
-		for (size_t i = args; i < maxInputs; i++)
-		{
-			switch (i)
-			{
-			case 0:
-				layerData.O_W = 10;
-				break;
-			default:
-				break;
-			}
-		}
-
-
-		layerData.numOutputs = 1;
-		layerData.O_H = 1;
-		layerData.kernalSize = 1;
-
-		//Calculate number of kernals needed
-		layerData.numKernals = m_layers[m_layers.size() - 1].numOutputs *  m_layers[m_layers.size() - 1].O_H * m_layers[m_layers.size() - 1].O_W * layerData.O_W;
-
-	}
-
-	//Calculate number of threads needed. (One thread per output pixel)
-	layerData.numThreads = layerData.O_W * layerData.O_H * layerData.numOutputs;
-
-	//Increese amount of datastorage needed on GPU
-	m_kernalArraySize += layerData.numKernals * layerData.kernalSize * layerData.kernalSize * sizeof(float);
-	m_dataArraySize += layerData.numThreads * sizeof(float);
-
-	//Add new layer to the layer vector
-	m_layers.push_back(layerData);
-
-	va_end(args__);
-}
-
-void ConvNet::Initialize()
-{
-	Destroy();
-	init = true;
-
-	//Cuda Stuff
-	cudaError_t error;
-
-	error = cudaMalloc((void**)&d_dataArray, m_dataArraySize);
-	if (error != cudaSuccess) {
-		std::cout << "Malloc d_dataArray error: " << cudaGetErrorString(error) << std::endl;
-	}
-
-	error = cudaMalloc((void**)&d_kernalArray, m_kernalArraySize);
-	if (error != cudaSuccess) {
-		std::cout << "Malloc d_kernalArray error: " << cudaGetErrorString(error) << std::endl;
-	}
-
-	//Kernal
-	InitializeKernal();
-}
-
-void ConvNet::Feed(float* inputData)
+int ConvNet::Feed(float* inputData)
 {
 	if (!init)
-		return;
+		return -2;
+
+	int input_offset = 0;
+	int output_offset = m_layers[0]->GetNumOfOutputElements();
+	int kernal_offset = 0;
 
 	//Cuda Stuff
 	cudaError_t error;
 
-	error = cudaMemcpy(d_dataArray, inputData, m_layers[0].O_W * m_layers[0].O_H * m_layers[0].numOutputs * sizeof(float), cudaMemcpyHostToDevice);
+	error = cudaMemcpy(d_dataArray, inputData, output_offset * sizeof(float), cudaMemcpyHostToDevice);
 	if (error != cudaSuccess) {
 		std::cout << "cudaMemcpy d_dataArray error: " << cudaGetErrorString(error) << std::endl;
 	}
 
-	int input_offset = 0;
-	int output_offset = 0;
-	int kernal_offset = 0;
+	int nLayers = m_layers.size();
 
-	dim3 nBlocks;// (m_layers[0].numOutputs);
-	dim3 nThreads;// (m_layers[0].O_W, m_layers[0].O_H);
+	for (size_t i = 1; i < nLayers; i++)
+	{
+		int result = m_layers[i]->FeedForward(d_dataArray + input_offset, d_dataArray + output_offset, d_kernalArray + kernal_offset);
+		if (!result)
+			return result;
+		input_offset = output_offset;
+		output_offset += m_layers[i]->GetNumOfOutputElements();
+		kernal_offset += m_layers[i]->GetNumOfKernelElements();
+	}
+
+	return 1;
+
+	//dim3 nBlocks;// (m_layers[0].numOutputs);
+	//dim3 nThreads;// (m_layers[0].O_W, m_layers[0].O_H);
 
 	//ConvLayerFeed<<<nBlocks, nThreads>>>(d_dataArray, m_I_W, m_I_H, m_numInputs, d_dataArray + output_offset, d_kernalArray, 3);
 	//error = cudaGetLastError();
@@ -316,32 +261,42 @@ void ConvNet::Feed(float* inputData)
 	//	std::cout << "ConvLayerFeed error: " << cudaGetErrorString(error) << std::endl;
 	//}
 
-	for (size_t i = 1; i < m_layers.size(); i++)
-	{
-		input_offset = output_offset;
-		output_offset += m_layers[i - 1].numOutputs * m_layers[i - 1].O_W * m_layers[i - 1].O_H;
-		kernal_offset += m_layers[i - 1].kernalSize * m_layers[i - 1].kernalSize * m_layers[i - 1].numKernals;
+	//for (size_t i = 1; i < m_layers.size(); i++)
+	//{
+	//	input_offset = output_offset;
+	//	output_offset += m_layers[i - 1].numOutputs * m_layers[i - 1].O_W * m_layers[i - 1].O_H;
+	//	kernal_offset += m_layers[i - 1].kernalSize * m_layers[i - 1].kernalSize * m_layers[i - 1].numKernals;
 
-		nBlocks = dim3(m_layers[i].numOutputs);
-		nThreads = dim3(m_layers[i].O_W, m_layers[i].O_H);
+	//	nBlocks = dim3(m_layers[i].numOutputs);
+	//	nThreads = dim3(m_layers[i].O_W, m_layers[i].O_H);
 
-		if(m_layers[i].type == LAYER_TYPE::ConvLayer){
-			ConvLayerFeed << <nBlocks, nThreads >> > (d_dataArray + input_offset, m_layers[i - 1].O_W, m_layers[i - 1].O_H, m_layers[i - 1].numOutputs, d_dataArray + output_offset, d_kernalArray + kernal_offset, 3);
-		}
-		else if (m_layers[i].type == LAYER_TYPE::PoolLayer) {
-			MaxPoolLayer << <nBlocks, nThreads >> > (d_dataArray + input_offset, m_layers[i - 1].O_W, m_layers[i - 1].O_H, d_dataArray + output_offset, m_layers[i].kernalSize, m_layers[i].stride);
-		}
-		else if (m_layers[i].type == LAYER_TYPE::NN) {
-			NNLayer << <nBlocks, nThreads >> > (d_dataArray + input_offset, m_layers[i - 1].O_W * m_layers[i - 1].O_H * m_layers[i - 1].numOutputs, d_dataArray + output_offset, d_kernalArray + kernal_offset);
-		}
+	//	if(m_layers[i].type == LAYER_TYPE::ConvLayer){
+	//		ConvLayerFeed << <nBlocks, nThreads >> > (d_dataArray + input_offset, m_layers[i - 1].O_W, m_layers[i - 1].O_H, m_layers[i - 1].numOutputs, d_dataArray + output_offset, d_kernalArray + kernal_offset, 3);
+	//	}
+	//	else if (m_layers[i].type == LAYER_TYPE::PoolLayer) {
+	//		MaxPoolLayer << <nBlocks, nThreads >> > (d_dataArray + input_offset, m_layers[i - 1].O_W, m_layers[i - 1].O_H, d_dataArray + output_offset, m_layers[i].kernalSize, m_layers[i].stride);
+	//	}
+	//	else if (m_layers[i].type == LAYER_TYPE::NN) {
+	//		NNLayer << <nBlocks, nThreads >> > (d_dataArray + input_offset, m_layers[i - 1].O_W * m_layers[i - 1].O_H * m_layers[i - 1].numOutputs, d_dataArray + output_offset, d_kernalArray + kernal_offset);
+	//	}
 
-		error = cudaGetLastError();
-		if (error != cudaSuccess) {
-			std::cout << "ConvLayerFeed error #" << i << ": " << cudaGetErrorString(error) << std::endl;
-		}
+	//	error = cudaGetLastError();
+	//	if (error != cudaSuccess) {
+	//		std::cout << "ConvLayerFeed error #" << i << ": " << cudaGetErrorString(error) << std::endl;
+	//	}
 
-	}
+	//}
 
+}
+
+Layer * ConvNet::GetLastLayer()
+{
+	return m_layers[m_layers.size()-1];
+}
+
+Layer * ConvNet::operator[](int i)
+{
+	return m_layers[i];
 }
 
 //void ConvNet::SetKernalData(const void * kernalData, int bytes, int DeviceOffset)
@@ -378,23 +333,57 @@ void ConvNet::GetData(float* arrayData, int & dataWidth, int & dataHeight, int m
 {
 	cudaError_t error;
 
-	dataWidth = m_layers[layerIndex].O_W;
-	dataHeight = m_layers[layerIndex].O_H;
+	dataWidth = m_layers[layerIndex]->GetOutputWidth();
+	dataHeight = m_layers[layerIndex]->GetOutputHeight();
 
 	int start = 0;
-	int outputSize = m_layers[layerIndex].O_W * m_layers[layerIndex].O_H * sizeof(float);
+	int outputSize = dataWidth * dataHeight * sizeof(float);
 	int read = (outputSize < maxBytes) ? outputSize : maxBytes;
 
 	for (size_t i = 0; i < layerIndex; i++)
 	{
-		start += m_layers[i].numOutputs * m_layers[i].O_W * m_layers[i].O_H;
+		start += m_layers[i]->GetNumOfOutputElements();
 	}
-	start += outputIndex * m_layers[layerIndex].O_W * m_layers[layerIndex].O_H;
+	start += outputIndex * dataWidth * dataHeight;
 
 	error = cudaMemcpy(arrayData, d_dataArray + start, outputSize, cudaMemcpyDeviceToHost);
 	if (error != cudaSuccess) {
 		std::cout << "GetData layer/output error: " << cudaGetErrorString(error) << std::endl;
 	}
+}
+
+void ConvNet::AddLayer(Layer * layer)
+{
+	m_layers.push_back(layer);
+}
+
+void ConvNet::CreateNetwork()
+{
+	Destroy();
+	init = true;
+
+	int nLayers = m_layers.size();
+	for (size_t i = 0; i < nLayers; i++)
+	{
+		m_dataArraySize		+= m_layers[i]->GetNumOfOutputElements() * sizeof(float);
+		m_kernelArraySize	+= m_layers[i]->GetNumOfKernelElements() * sizeof(float);
+	}
+
+	//Allocate GPU memory needed with Cuda
+	cudaError_t error;
+
+	error = cudaMalloc((void**)&d_dataArray, m_dataArraySize);
+	if (error != cudaSuccess) {
+		std::cout << "Malloc d_dataArray error: " << cudaGetErrorString(error) << std::endl;
+	}
+
+	error = cudaMalloc((void**)&d_kernalArray, m_kernelArraySize);
+	if (error != cudaSuccess) {
+		std::cout << "Malloc d_kernalArray error: " << cudaGetErrorString(error) << std::endl;
+	}
+
+	//Kernal
+	InitializeKernal();
 }
 
 void ConvNet::Destroy()
@@ -414,7 +403,7 @@ void ConvNet::Destroy()
 void ConvNet::InitializeKernal()
 {
 	int startInitFromIndex = 0;
-	h_kernalArray = new float[m_kernalArraySize];
+	h_kernalArray = new float[m_kernelArraySize];
 
 	int left = 0;
 	int i = 1;
@@ -422,9 +411,9 @@ void ConvNet::InitializeKernal()
 	do
 	{
 		if (i < m_layers.size())
-			if (m_layers[i].kernalSize == 3)/*Special case used for testing. This should be removed*/
+			if (m_layers[i]->GetKernalSize() == 3)/*Special case used for testing. This should be removed*/
 			{
-				for (size_t k = 0; k < m_layers[i].numKernals; k++)
+				for (size_t k = 0; k < m_layers[i]->GetNumOfKernals(); k++)
 				{
 					h_kernalArray[j++] = 0;
 					h_kernalArray[j++] = -1;
@@ -438,9 +427,9 @@ void ConvNet::InitializeKernal()
 				}
 			}
 			else {/*General case*/
-				for (size_t k = 0; k < m_layers[i].numKernals; k++)
+				for (size_t k = 0; k < m_layers[i]->GetNumOfKernals(); k++)
 				{
-					for (size_t k2 = 0; k2 < m_layers[i].kernalSize * m_layers[i].kernalSize; k2++)
+					for (size_t k2 = 0; k2 < m_layers[i]->GetKernalSize() * m_layers[i]->GetKernalSize(); k2++)
 					{
 						float w = (rand() / float(RAND_MAX)) * 2.0f - 1.0f;
 						h_kernalArray[j++] = w;
@@ -453,7 +442,7 @@ void ConvNet::InitializeKernal()
 
 	cudaError_t error;
 
- 	error = cudaMemcpy(d_kernalArray, h_kernalArray, m_kernalArraySize, cudaMemcpyHostToDevice);
+ 	error = cudaMemcpy(d_kernalArray, h_kernalArray, m_kernelArraySize, cudaMemcpyHostToDevice);
 	if (error != cudaSuccess) {
 		std::cout << "SetKernalData error: " << cudaGetErrorString(error) << std::endl;
 	}
