@@ -2,8 +2,8 @@
 Deep Convolutional Neural Network implemented using CUDA and SFML
 
 This project is my first atempt to implement a Deep Neural Network.
-* ( Project started                     @ 5:th dec 2018 )
-* ( Targeted deadline for the main goal @ 5:th jan 2019 )
+
+**Project is on HOLD for now**
 
 ## The Goal
 
